@@ -17,6 +17,16 @@ class Mode(Enum):
     YEARLY = 'yearly'
     TOTAL = 'total'
 
+    @staticmethod
+    def from_str(s: str):
+        return {
+            'daily': Mode.DAILY,
+            'weekly': Mode.WEEKLY,
+            'monthly': Mode.MONTHLY,
+            'yearly': Mode.YEARLY,
+            'total': Mode.TOTAL
+        }[s]
+
 
 default_formats = {
     Mode.DAILY: '%Y-%m-%d',
@@ -26,18 +36,26 @@ default_formats = {
 }
 
 
-def parse_list(list_str: str) -> list:
-    list = list_str.split(',')
-    list = [s.strip() for s in list]
+def parse_modes(list_str: str) -> list[Mode]:
+    items = list_str.split(',')
+    modes = [Mode.from_str(s.strip()) for s in items]
 
-    return list
+    return modes
 
 
 def id_to_date(formats: dict, id: str) -> date:
     for key in formats:
+        id_s = id
+        format = formats[key]
+        if key is Mode.WEEKLY:
+            # Weekly format needs a day of the week to extract full date
+            id_s = id + '-1'  # append Monday
+            format = formats[key] + '-%w'  # append day of the week pattern
         try:
-            dtime = datetime.strptime(id, formats[key])
+            # print(f'trying {id_s} as {format}')
+            dtime = datetime.strptime(id_s, format)
             if dtime:
+                # print(f'parsed {id_s} as {format} to {dtime}')
                 return dtime.date()
         except:
             continue
@@ -47,6 +65,7 @@ def id_to_date(formats: dict, id: str) -> date:
 class DataPoint:
     def __init__(self, id: str, date: date, checked: int, unchecked: int):
         self.id = id
+        self.date = date
         self.checked = checked
         self.unchecked = unchecked
         self.total = checked + unchecked
@@ -61,7 +80,7 @@ class Metric:
     def __init__(self, name: str, keyword: str, modes_s: str):
         self.name = name
         self.keyword = keyword
-        self.modes = parse_list(modes_s)
+        self.modes = parse_modes(modes_s)
         self.data = []
 
     # add_data_point adds a data point only if id matches one of the recognized date formats
@@ -77,13 +96,45 @@ class Metric:
         self.data.sort(key=lambda p: p.date)
 
     def total(self) -> DataPoint:
-        res = DataPoint(Mode.TOTAL, date.today(), 0, 0)
+        res = DataPoint(Mode.TOTAL.value, date.today(), 0, 0)
         for p in self.data:
             res.checked += p.checked
             res.unchecked += p.unchecked
             res.total += p.total
         if res.total > 0:
             res.completion = res.checked / res.total
+        return res
+
+    def series(self, mode: Mode) -> list[DataPoint]:
+        if mode is Mode.TOTAL:
+            # Total stats have simple heuristics
+            p = self.total()
+            return [p]
+
+        res = []
+        i = -1
+        last_id = None
+
+        for p in self.data:
+            id = p.date.strftime(Metric.formats[mode])
+            if id != last_id:
+                if i >= 0 and res[i].total > 0:
+                    # Update completion rate for last aggregate
+                    res[i].completion = res[i].checked / res[i].total
+                i += 1
+                last_id = id
+                p.id = id
+                res.append(p)
+                continue
+
+            res[i].checked += p.checked
+            res[i].unchecked += p.unchecked
+            res[i].total += p.total
+
+        if i >= 0 and res[i].total > 0:
+            # Update completion rate for last aggregate
+            res[i].completion = res[i].checked / res[i].total
+
         return res
 
 
@@ -141,20 +192,33 @@ if args.password:
 metrics = get_metrics_from_config(config)
 
 keep = Keep()
+print('Authenticating, this may take a while...')
 success = keep.login(config['user']['email'], config['user']['password'])
 
 if not success:
     print('Authentication failed')
     exit()
 
+print('Collecting metrics')
+print('--------------------------------')
 for key in metrics:
     metric = metrics[key]
     load_metric_datapoints(keep, metric)
 
-    total = metric.total()
-
     print(f'Keyword: {metric.keyword}')
-    print(f'Checked: {total.checked}')
-    print(f'Unchecked: {total.unchecked}')
-    print(f'Completion rate: {round(total.completion*100)}%')
+    print('--')
+
+    for mode in metric.modes:
+        print(f'Statistics in "{mode.value}" mode:')
+        series = metric.series(mode)
+
+        for p in series:
+            print(f'Point "{p.id}"')
+
+            print(f'Checked: {p.checked}')
+            print(f'Unchecked: {p.unchecked}')
+            print(f'Completion rate: {round(p.completion*100)}%')
+            print('--')
+        print('----')
+
     print('--------------------------------')
