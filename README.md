@@ -5,7 +5,9 @@ Google Keep Task List statistics exporter tool.
 Features:
 
 - Calculate overall completion rate for task lists by keyword
-- TODO: Export task list completion time series chart, aggregated daily/weekly/monthly/yearly
+- Aggregate task list completion daily/weekly/monthly/yearly
+- Export time series data and aggregates as CSV
+- Configurable date formats
 
 ## Installation
 
@@ -38,6 +40,14 @@ python3 gkeepstats.py
 # or
 ./gkeepstats.py
 ```
+
+For available command line options see the help page:
+
+```
+./gkeepstats.py -h
+```
+
+By default, CSV export is written to files in the current folder. Each metric is written in a separate file called `{Metric}_{mode}_{timestamp}.csv`.
 
 ## Credits
 

@@ -1,6 +1,7 @@
 #!/usr/local/bin/python3
 from argparse import ArgumentParser
 from configparser import ConfigParser
+import csv
 from datetime import date, datetime
 from enum import Enum
 import getpass
@@ -171,23 +172,42 @@ def get_config(path='gkeepstats.ini'):
     return ini
 
 
+def write_series_to_csv_file(fname: str, series: list[DataPoint]):
+    with open(fname, 'w') as csvfile:
+        writer = csv.writer(csvfile)
+        # Write header
+        writer.writerow(
+            ['Index', 'Checked', 'Unchecked', 'Total', 'Completion'])
+        for p in series:
+            writer.writerow(
+                [p.id, p.checked, p.unchecked, p.total, p.completion])
+
+
 argparser = ArgumentParser(
     description='Export Google Keep statistics')
-argparser.add_argument('--email', metavar='u', type=str, help='Email')
-argparser.add_argument('--password', metavar='p', type=bool,
+argparser.add_argument('-e', '--email', type=str, help='Email')
+argparser.add_argument('-p', '--password', action='count', default=0,
                        help='Promt for password')
-argparser.add_argument('--config', metavar='c', type=str,
+argparser.add_argument('-c', '--config', type=str,
                        default='gkeepstats.ini', help='Config file path')
+argparser.add_argument('-d', '--dry', action='count', default=0,
+                       help='Dry run, do not write any files')
+argparser.add_argument('-v', '--verbose', action='count', default=0,
+                       help='Print verbose output')
 
 args = argparser.parse_args()
 
 config = get_config(args.config)
+
 email = config['user']['email']
 if args.email:
     email = args.email
+
 password = config['user']['password']
 if args.password:
     password = getpass.getpass('Password: ')
+
+should_write = not bool(args.dry)
 
 metrics = get_metrics_from_config(config)
 
@@ -204,21 +224,25 @@ print('--------------------------------')
 for key in metrics:
     metric = metrics[key]
     load_metric_datapoints(keep, metric)
+    metric.sort()
 
     print(f'Keyword: {metric.keyword}')
-    print('--')
+
+    tstamp = datetime.now().strftime('%Y%m%d%H%M%S')
 
     for mode in metric.modes:
-        print(f'Statistics in "{mode.value}" mode:')
+        print(f'Statistics in "{mode.value}" mode')
         series = metric.series(mode)
 
-        for p in series:
-            print(f'Point "{p.id}"')
+        csvfile = None
+        if should_write:
+            fname = f'{metric.keyword}_{mode.value}_{tstamp}.csv'
+            write_series_to_csv_file(fname, series)
 
-            print(f'Checked: {p.checked}')
-            print(f'Unchecked: {p.unchecked}')
-            print(f'Completion rate: {round(p.completion*100)}%')
-            print('--')
-        print('----')
+        if args.verbose:
+            for p in series:
+                print(
+                    f'Point "{p.id}": {p.checked} checked, {p.unchecked} unchecked, {p.total} total, completion {round(p.completion*100)}%')
+            print('----')
 
     print('--------------------------------')

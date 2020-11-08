@@ -130,3 +130,5 @@ dmypy.json
 
 # gkeepstats config
 gkeepstats.ini
+# gkeepstats output CSV files
+*.csv
