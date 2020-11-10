@@ -5,6 +5,7 @@ import csv
 from datetime import date, datetime
 from enum import Enum
 import getpass
+import keyring
 import os
 import re
 
@@ -186,8 +187,8 @@ def write_series_to_csv_file(fname: str, series: list[DataPoint]):
 argparser = ArgumentParser(
     description='Export Google Keep statistics')
 argparser.add_argument('-e', '--email', type=str, help='Email')
-argparser.add_argument('-p', '--password', action='count', default=0,
-                       help='Promt for password')
+argparser.add_argument('-p', '--auth', action='count', default=0,
+                       help='Promt for password to authenticate')
 argparser.add_argument('-c', '--config', type=str,
                        default='gkeepstats.ini', help='Config file path')
 argparser.add_argument('-d', '--dry', action='count', default=0,
@@ -203,21 +204,39 @@ email = config['user']['email']
 if args.email:
     email = args.email
 
-password = config['user']['password']
-if args.password:
-    password = getpass.getpass('Password: ')
 
 should_write = not bool(args.dry)
 
 metrics = get_metrics_from_config(config)
 
 keep = Keep()
-print('Authenticating, this may take a while...')
-success = keep.login(config['user']['email'], config['user']['password'])
 
-if not success:
-    print('Authentication failed')
-    exit()
+if args.auth:
+    password = getpass.getpass('Password: ')
+    print('Authenticating, this may take a while...')
+    try:
+        keep.login(config['user']['email'], password)
+    except:
+        print('Authentication failed')
+        exit()
+
+    # Save the auth token in keyring
+    token = keep.getMasterToken()
+    keyring.set_password('gkeepstats', email, token)
+
+else:
+    print('Trying to load access token from keyring')
+    token = keyring.get_password('gkeepstats', email)
+    if not token:
+        print('Could not find token. Try to re-run the command with --auth to save access token in keyring')
+        exit()
+    print('Authorization, this may take a while...')
+    try:
+        keep.resume(email, token)
+    except:
+        print('Authentication failed. Try to reauthenticate with --auth option')
+        exit()
+
 
 print('Collecting metrics')
 print('--------------------------------')
