@@ -58,13 +58,27 @@ For available command line options see the help page:
 
 ### Authentication
 
-GKeepStats can use the operating system key ring to save the access token securely. First time you need to authenticate with your password by adding an `--auth`:
+GKeepStats can use the operating system key ring to save the access token securely. First time you need to authenticate with your password by running the `login` command:
 
 ```
-./gkeepstats.py --auth
+./gkeepstats.py login
 ```
 
-If it authenticates successfully and your operating system supports key ring, access token is saved and from the next time onwards you can use it without `--auth` and password prompt won't be necessary:
+If it authenticates successfully and your operating system supports key ring, access token is saved and from the next time onwards you can use it without `login` and password prompt won't be necessary:
+
+```
+./gkeepstats.py
+```
+
+### Collecting statistics
+
+Default command is `stats` which collects statistics, given the metrics configured in the config file. Calling
+
+```
+./gkeepstats.py stats
+```
+
+is equivalent to just
 
 ```
 ./gkeepstats.py

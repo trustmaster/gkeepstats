@@ -143,8 +143,9 @@ class Metric:
 def get_metrics_from_config(config: ConfigParser) -> dict[str, Metric]:
     metrics = {}
     for s in config.sections():
-        if s != 'user' and s != 'formats':
-            m = Metric(s, config[s]['keyword'], config[s]['modes'])
+        if s.startswith('metric:'):
+            name = s[len('metric:'):].lstrip()
+            m = Metric(name, config[s]['keyword'], config[s]['modes'])
             metrics[s] = m
     return metrics
 
@@ -184,11 +185,73 @@ def write_series_to_csv_file(fname: str, series: list[DataPoint]):
                 [p.id, p.checked, p.unchecked, p.total, p.completion])
 
 
+def login(keep: Keep, email: str):
+    print('Logging in')
+    password = getpass.getpass('Password: ')
+    print('Authenticating, this may take a while...')
+    try:
+        keep.login(email, password)
+    except:
+        print('Authentication failed')
+        exit()
+
+    # Save the auth token in keyring
+    print('Authentication is successful, saving token in keyring')
+    token = keep.getMasterToken()
+    keyring.set_password('gkeepstats', email, token)
+    print('Token saved. Have fun with other commands!')
+
+
+def resume(keep: Keep, email: str):
+    print('Loading access token from keyring')
+    token = keyring.get_password('gkeepstats', email)
+    if not token:
+        print('Could not find token. Please authenticate with `./gkeepstats.py login`')
+        exit()
+    print('Authorization, this may take a while...')
+    try:
+        keep.resume(email, token)
+    except:
+        print('Authentication failed. Try to re-authenticate with `./gkeepstats.py login`')
+        exit()
+
+
+def stats(config: ConfigParser, keep: Keep, dry: bool, verbose: bool):
+    print('Collecting metrics')
+    metrics = get_metrics_from_config(config)
+
+    print('--------------------------------')
+    for key in metrics:
+        metric = metrics[key]
+        load_metric_datapoints(keep, metric)
+        metric.sort()
+
+        print(f'Keyword: {metric.keyword}')
+
+        tstamp = datetime.now().strftime('%Y%m%d%H%M%S')
+
+        for mode in metric.modes:
+            print(f'Statistics in "{mode.value}" mode')
+            series = metric.series(mode)
+
+            if not dry:
+                fname = f'{metric.keyword}_{mode.value}_{tstamp}.csv'
+                write_series_to_csv_file(fname, series)
+
+            if verbose:
+                for p in series:
+                    print(
+                        f'Point "{p.id}": {p.checked} checked, {p.unchecked} unchecked, {p.total} total, completion {round(p.completion*100)}%')
+                print('----')
+
+        print('--------------------------------')
+
+
 argparser = ArgumentParser(
     description='Export Google Keep statistics')
+argparser.add_argument('command', type=str, nargs='?',
+                       help='Command: login|stats|plan', default='stats')
 argparser.add_argument('-e', '--email', type=str, help='Email')
-argparser.add_argument('-p', '--auth', action='count', default=0,
-                       help='Promt for password to authenticate')
 argparser.add_argument('-c', '--config', type=str,
                        default='gkeepstats.ini', help='Config file path')
 argparser.add_argument('-d', '--dry', action='count', default=0,
@@ -204,64 +267,27 @@ email = config['user']['email']
 if args.email:
     email = args.email
 
-
-should_write = not bool(args.dry)
-
-metrics = get_metrics_from_config(config)
-
 keep = Keep()
 
-if args.auth:
-    password = getpass.getpass('Password: ')
-    print('Authenticating, this may take a while...')
-    try:
-        keep.login(config['user']['email'], password)
-    except:
-        print('Authentication failed')
-        exit()
 
-    # Save the auth token in keyring
-    token = keep.getMasterToken()
-    keyring.set_password('gkeepstats', email, token)
-
-else:
-    print('Trying to load access token from keyring')
-    token = keyring.get_password('gkeepstats', email)
-    if not token:
-        print('Could not find token. Try to re-run the command with --auth to save access token in keyring')
-        exit()
-    print('Authorization, this may take a while...')
-    try:
-        keep.resume(email, token)
-    except:
-        print('Authentication failed. Try to reauthenticate with --auth option')
-        exit()
+def handle_stats():
+    resume(keep, email)
+    stats(config, keep, args.dry, args.verbose)
 
 
-print('Collecting metrics')
-print('--------------------------------')
-for key in metrics:
-    metric = metrics[key]
-    load_metric_datapoints(keep, metric)
-    metric.sort()
+def handle_login():
+    login(keep, email)
 
-    print(f'Keyword: {metric.keyword}')
 
-    tstamp = datetime.now().strftime('%Y%m%d%H%M%S')
+handlers = {
+    'stats': handle_stats,
+    'login': handle_login,
+}
 
-    for mode in metric.modes:
-        print(f'Statistics in "{mode.value}" mode')
-        series = metric.series(mode)
+if not args.command in handlers:
+    print(f'Unknown command: {args.command}')
+    exit()
 
-        csvfile = None
-        if should_write:
-            fname = f'{metric.keyword}_{mode.value}_{tstamp}.csv'
-            write_series_to_csv_file(fname, series)
+handler = handlers[args.command]
 
-        if args.verbose:
-            for p in series:
-                print(
-                    f'Point "{p.id}": {p.checked} checked, {p.unchecked} unchecked, {p.total} total, completion {round(p.completion*100)}%')
-            print('----')
-
-    print('--------------------------------')
+handler()
