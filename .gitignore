@@ -128,7 +128,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# gkeepstats config
-gkeepstats.ini
-# gkeepstats output CSV files
+# gkeeptodo config
+gkeeptodo.ini
+# gkeeptodo output CSV files
 *.csv

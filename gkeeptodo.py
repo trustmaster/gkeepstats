@@ -225,7 +225,7 @@ def load_metric_datapoints(keep: Keep, m: Metric) -> Metric:
     return m
 
 
-def get_config(path='gkeepstats.ini'):
+def get_config(path='gkeeptodo.ini'):
     if not os.path.isfile(path):
         print(f'Config file {path} not found')
         exit()
@@ -260,21 +260,21 @@ def login(keep: Keep, email: str):
     # Save the auth token in keyring
     print('Authentication is successful, saving token in keyring')
     token = keep.getMasterToken()
-    keyring.set_password('gkeepstats', email, token)
+    keyring.set_password('gkeeptodo', email, token)
     print('Token saved. Have fun with other commands!')
 
 
 def resume(keep: Keep, email: str):
     print('Loading access token from keyring')
-    token = keyring.get_password('gkeepstats', email)
+    token = keyring.get_password('gkeeptodo', email)
     if not token:
-        print('Could not find token. Please authenticate with `./gkeepstats.py login`')
+        print('Could not find token. Please authenticate with `./gkeeptodo.py login`')
         exit()
     print('Authorization, this may take a while...')
     try:
         keep.resume(email, token)
     except:
-        print('Authentication failed. Try to re-authenticate with `./gkeepstats.py login`')
+        print('Authentication failed. Try to re-authenticate with `./gkeeptodo.py login`')
         exit()
 
 
@@ -331,7 +331,7 @@ argparser.add_argument('command', type=str, nargs='?',
                        help='Command: login|stats|plan', default='stats')
 argparser.add_argument('-e', '--email', type=str, help='Email')
 argparser.add_argument('-c', '--config', type=str,
-                       default='gkeepstats.ini', help='Config file path')
+                       default='gkeeptodo.ini', help='Config file path')
 argparser.add_argument('-f', '--from-date', type=str,
                        help='From date as YYYY-MM-DD')
 argparser.add_argument('-t', '--to-date', type=str,

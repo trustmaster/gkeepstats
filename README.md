@@ -1,8 +1,13 @@
-# Google Keep Stats
+# Google Keep TODO
 
-Google Keep Task List statistics exporter tool.
+Statistics exporter and task planner for Google Keep task lists.
 
 ![Example user flow](./example_flow.png)
+
+Commands:
+
+- `stats` - export statistics for task lists as CSV
+- `plan` - schedule regular task lists from template
 
 Features:
 
@@ -29,7 +34,7 @@ pip3 install -r requirements.txt
 Optional: make the script executable:
 
 ```
-chmod +x gkeepstats.py
+chmod +x gkeeptodo.py
 ```
 
 ## Usage
@@ -37,7 +42,7 @@ chmod +x gkeepstats.py
 This tool is configured via a config file, to avoid reentering parameters on every call. Copy the example config file:
 
 ```
-cp gkeepstats.example.ini gkeepstats.ini
+cp gkeeptodo.example.ini gkeeptodo.ini
 ```
 
 And edit it to come up with your own setup.
@@ -45,29 +50,29 @@ And edit it to come up with your own setup.
 Then you can simply call the script in one of the available ways:
 
 ```
-python3 gkeepstats.py
+python3 gkeeptodo.py
 # or
-./gkeepstats.py
+./gkeeptodo.py
 ```
 
 For available command line options see the help page:
 
 ```
-./gkeepstats.py -h
+./gkeeptodo.py -h
 ```
 
 ### Authentication
 
-GKeepStats can use the operating system key ring to save the access token securely. First time you need to authenticate with your password by running the `login` command:
+gkeeptodo can use the operating system key ring to save the access token securely. First time you need to authenticate with your password by running the `login` command:
 
 ```
-./gkeepstats.py login
+./gkeeptodo.py login
 ```
 
 If it authenticates successfully and your operating system supports key ring, access token is saved and from the next time onwards you can use it without `login` and password prompt won't be necessary:
 
 ```
-./gkeepstats.py
+./gkeeptodo.py
 ```
 
 ### Collecting statistics
@@ -75,13 +80,13 @@ If it authenticates successfully and your operating system supports key ring, ac
 Default command is `stats` which collects statistics, given the metrics configured in the config file. Calling
 
 ```
-./gkeepstats.py stats
+./gkeeptodo.py stats
 ```
 
 is equivalent to just
 
 ```
-./gkeepstats.py
+./gkeeptodo.py
 ```
 
 ### Output
@@ -91,14 +96,14 @@ By default, CSV export is written to files in the current folder. Each metric is
 You can disable CSV export by adding `--dry` option:
 
 ```
-./gkeepstats.py --dry
+./gkeeptodo.py --dry
 ```
 
 Use the `--verbose` or `-v` option to enable verbose printing of the results in the console, e.g.:
 
 ```
-./gkeepstats.py -v
-./gkeepstats.py -v --dry
+./gkeeptodo.py -v
+./gkeeptodo.py -v --dry
 ```
 
 ## Credits
