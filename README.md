@@ -20,10 +20,10 @@ Supported metrics:
 
 ## Installation
 
-This script requires Python 3 and https://github.com/kiwiz/gkeepapi to run. Install the pre-requisite libraries via Pip3:
+This script requires Python 3, https://github.com/kiwiz/gkeepapi, and a couple more libraries to run. Install the pre-requisite libraries via Pip3:
 
 ```
-pip3 install gkeepapi keyring
+pip3 install -r requirements.txt
 ```
 
 Optional: make the script executable:
