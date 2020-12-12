@@ -151,7 +151,7 @@ class Todo:
 class Template:
     def __init__(self, name: str, title: str, mode: Mode, format: str, items_s: str, labels_s: str):
         self.name = name
-        self.title = title.replace('\{date\}', format)
+        self.title = title.replace('{date}', format)
         self.mode = mode
         items = items_s.split(',')
         self.format = format
@@ -189,6 +189,17 @@ class Template:
         return res
 
 
+def get_config(path='gkeeptodo.ini'):
+    if not os.path.isfile(path):
+        print(f'Config file {path} not found')
+        exit()
+
+    ini = ConfigParser(interpolation=None)
+    ini.read(path)
+
+    return ini
+
+
 def get_metrics_from_config(config: ConfigParser) -> dict[str, Metric]:
     metrics = {}
     for s in config.sections():
@@ -212,6 +223,16 @@ def get_templates_from_config(config: ConfigParser, formats: dict[Mode, str]) ->
     return templates
 
 
+def get_formats(config: ConfigParser) -> dict[Mode, str]:
+    formats = default_formats
+    if 'formats' in config.sections():
+        for key in config['formats']:
+            mode = Mode.from_str(key)
+            format = config['formats'][key]
+            formats[mode] = format
+    return formats
+
+
 def load_metric_datapoints(keep: Keep, m: Metric) -> Metric:
     notes = keep.find(query=m.keyword)
 
@@ -223,17 +244,6 @@ def load_metric_datapoints(keep: Keep, m: Metric) -> Metric:
         m.add_data_point(id, len(note.checked), len(note.unchecked))
 
     return m
-
-
-def get_config(path='gkeeptodo.ini'):
-    if not os.path.isfile(path):
-        print(f'Config file {path} not found')
-        exit()
-
-    ini = ConfigParser()
-    ini.read(path)
-
-    return ini
 
 
 def write_series_to_csv_file(fname: str, series: list[DataPoint]):
@@ -280,7 +290,7 @@ def resume(keep: Keep, email: str):
 
 def stats(config: ConfigParser, keep: Keep, dry: bool, verbose: bool):
     print('Collecting metrics')
-    # TODO: add reading formats from config
+    Metric.formats = get_formats(config)
     metrics = get_metrics_from_config(config)
 
     print('--------------------------------')
@@ -310,10 +320,25 @@ def stats(config: ConfigParser, keep: Keep, dry: bool, verbose: bool):
         print('--------------------------------')
 
 
-def plan(config: ConfigParser, keep: Keep, from_date: date, to_date: date):
+def plan(config: ConfigParser, keep: Keep, from_date: str, to_date: str):
     print('Planning TODOs')
-    # TODO: add reading formats from config
-    templates = get_templates_from_config(config, default_formats)
+
+    if from_date:
+        from_date = date.fromisoformat(from_date)
+    else:
+        from_date = date.today()
+
+    if to_date:
+        to_date = date.fromisoformat(to_date)
+    else:
+        to_date = date.today()
+
+    if from_date > to_date:
+        print('--to-date should be later than --from-date')
+        return
+
+    formats = get_formats(config)
+    templates = get_templates_from_config(config, formats)
 
     for key in templates:
         tpl = templates[key]
@@ -363,15 +388,7 @@ def handle_login():
 
 def handle_plan():
     # resume(keep, email)
-
-    from_date = date.today()
-    if args.from_date:
-        from_date = date.fromisoformat(args.from_date)
-    to_date = date.today()
-    if args.to_date:
-        to_date = date.fromisoformat(args.to_date)
-
-    plan(config, keep, from_date, to_date)
+    plan(config, keep, args.from_date, args.to_date)
 
 
 handlers = {
