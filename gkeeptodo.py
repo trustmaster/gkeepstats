@@ -9,7 +9,7 @@ import os
 import re
 
 from dateutil.relativedelta import relativedelta
-from gkeepapi import Keep
+from gkeepapi import Keep, node
 import keyring
 
 
@@ -36,6 +36,22 @@ default_formats = {
     Mode.WEEKLY: '%Y-W%W',
     Mode.MONTHLY: '%b %Y',
     Mode.YEARLY: '%Y',
+}
+
+
+colors = {
+    'blue': node.ColorValue.Blue,
+    'brown': node.ColorValue.Brown,
+    'dark-blue': node.ColorValue.DarkBlue,
+    'gray': node.ColorValue.Gray,
+    'green': node.ColorValue.Green,
+    'orange': node.ColorValue.Orange,
+    'pink': node.ColorValue.Pink,
+    'purple': node.ColorValue.Purple,
+    'red': node.ColorValue.Red,
+    'teal': node.ColorValue.Teal,
+    'white': node.ColorValue.White,
+    'yellow': node.ColorValue.Yellow,
 }
 
 
@@ -142,24 +158,28 @@ class Metric:
 
 
 class Todo:
-    def __init__(self, title: str, items: list[str], labels: list[str]):
+    def __init__(self, title: str, items: list[str], labels: list[str], color: str):
         self.title = title
         self.items = items
         self.labels = labels
+        self.color = color
 
 
 class Template:
-    def __init__(self, name: str, title: str, mode: Mode, format: str, items_s: str, labels_s: str):
+    def __init__(self, name: str, title: str, mode: Mode, format: str, items_s: str, labels_s: str, color: str):
         self.name = name
-        self.title = title.replace('{date}', format)
+        self.title = title
         self.mode = mode
         items = items_s.split(',')
         self.format = format
         self.items = [s.strip() for s in items]
         labels = labels_s.split(',')
         self.labels = [s.strip() for s in labels]
+        self.color = node.ColorValue.White
+        if color in colors:
+            self.color = colors[color]
 
-    def date_to_title(self, d: date) -> str:
+    def date_to_id(self, d: date) -> str:
         return d.strftime(self.format)
 
     def add_delta(self, d: date) -> date:
@@ -179,8 +199,9 @@ class Template:
 
         d = from_date
         while d <= to_date:
-            title = self.date_to_title(d)
-            todo = Todo(title, self.items, self.labels)
+            id = self.date_to_id(d)
+            title = self.title.replace('{date}', id)
+            todo = Todo(title, self.items, self.labels, self.color)
 
             res.append(todo)
 
@@ -217,8 +238,14 @@ def get_templates_from_config(config: ConfigParser, formats: dict[Mode, str]) ->
             name = s[len('template:'):].lstrip()
             mode = Mode.from_str(config[s]['mode'].strip())
             format = formats[mode]
+            labels = []
+            if 'labels' in config[s]:
+                labels = config[s]['labels']
+            color = 'white'
+            if 'color' in config[s]:
+                color = config[s]['color']
             t = Template(name, config[s]['title'], mode, format,
-                         config[s]['items'], config[s]['labels'])
+                         config[s]['items'], labels, color)
             templates[s] = t
     return templates
 
@@ -255,6 +282,17 @@ def write_series_to_csv_file(fname: str, series: list[DataPoint]):
         for p in series:
             writer.writerow(
                 [p.id, p.checked, p.unchecked, p.total, p.completion])
+
+
+def add_todo(keep: Keep, todo: Todo, labels: list[node.Label]) -> node.List:
+    items = []
+    for item in todo.items:
+        items.append((item, False))
+    note = keep.createList(todo.title, items)
+    note.color = todo.color
+    for label in labels:
+        note.labels.add(label)
+    return note
 
 
 def login(keep: Keep, email: str):
@@ -344,10 +382,19 @@ def plan(config: ConfigParser, keep: Keep, from_date: str, to_date: str):
         tpl = templates[key]
         print(f'Template {tpl.name}')
 
+        labels = []
+        for name in tpl.labels:
+            label = keep.findLabel(name)
+            if label:
+                labels.append(label)
+
         todos = tpl.generate(from_date, to_date)
         for t in todos:
             print(t.title, t.items, t.labels)
-            # TODO save in Keep
+            add_todo(keep, t, labels)
+
+    keep.sync()
+    print('----')
 
 
 argparser = ArgumentParser(
@@ -387,7 +434,7 @@ def handle_login():
 
 
 def handle_plan():
-    # resume(keep, email)
+    resume(keep, email)
     plan(config, keep, args.from_date, args.to_date)
 
 
