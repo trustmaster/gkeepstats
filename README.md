@@ -106,6 +106,23 @@ Use the `--verbose` or `-v` option to enable verbose printing of the results in 
 ./gkeeptodo.py -v --dry
 ```
 
+### Planning repetitive task lists
+
+With
+
+```
+./gkeeptodo.py plan -f <from-date> -t <to-date>
+```
+
+you can create repetitive task lists in your Google Keep account from template. An example template is described in [gkeeptodo.example.ini](./gkeeptodo.example.ini). More information on how to configure templates in the Configuration section.
+
+For instance, if you have a `daily` template configured in the `gkeeptodo.ini` file, you can generate a task list per each day from 1st of January 2021 to 9th of January 2021 with the following command:
+
+```
+./gkeeptodo.py plan -f 2021-01-01 -t 2021-01-09
+```
+
+
 ## Credits
 
 This tool uses the unofficial Google Keep API https://github.com/kiwiz/gkeepapi by [kiwiz](https://github.com/kiwiz). Google Keep is of course a registered trademark of Google and neither the API nor this script are affiliated with Google.
