@@ -89,6 +89,14 @@ is equivalent to just
 ./gkeeptodo.py
 ```
 
+To filter the data by date range use the `--from-date` (`-f`) and `--to-date` (`-t`) options, e.g.:
+
+```
+./gkeeptodo.py stats -f 2020-01-01 -t 2020-12-31
+```
+
+The range boundaries are inclusive. If any of these two options is omitted, the boundary stays open and includes all data available.
+
 ### Output
 
 By default, CSV export is written to files in the current folder. Each metric is written in a separate file called `{Metric}_{mode}_{timestamp}.csv`.

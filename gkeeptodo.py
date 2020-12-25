@@ -81,6 +81,15 @@ def id_to_date(formats: dict[Mode, str], id: str) -> date:
     return None
 
 
+def date_in_bounds(d: date, from_date: date, to_date: date) -> bool:
+    res = True
+    if from_date:
+        res = res and d >= from_date
+    if to_date:
+        res = res and d <= to_date
+    return res
+
+
 class DataPoint:
     def __init__(self, id: str, date: date, checked: int, unchecked: int):
         self.id = id
@@ -113,6 +122,10 @@ class Metric:
 
     def sort(self):
         self.data.sort(key=lambda p: p.date)
+
+    def filter_by_date(self, from_date: date, to_date: date):
+        self.data = [p for p in self.data if date_in_bounds(
+            p.date, from_date, to_date)]
 
     def total(self) -> DataPoint:
         res = DataPoint(Mode.TOTAL.value, date.today(), 0, 0)
@@ -326,7 +339,12 @@ def resume(keep: Keep, email: str):
         exit()
 
 
-def stats(config: ConfigParser, keep: Keep, dry: bool, verbose: bool):
+def stats(config: ConfigParser, keep: Keep, from_date: str, to_date: str, dry: bool, verbose: bool):
+    if from_date:
+        from_date = date.fromisoformat(from_date)
+    if to_date:
+        to_date = date.fromisoformat(to_date)
+
     print('Collecting metrics')
     Metric.formats = get_formats(config)
     metrics = get_metrics_from_config(config)
@@ -335,6 +353,8 @@ def stats(config: ConfigParser, keep: Keep, dry: bool, verbose: bool):
     for key in metrics:
         metric = metrics[key]
         load_metric_datapoints(keep, metric)
+        if from_date or to_date:
+            metric.filter_by_date(from_date, to_date)
         metric.sort()
 
         print(f'Keyword: {metric.keyword}')
@@ -426,7 +446,8 @@ keep = Keep()
 
 def handle_stats():
     resume(keep, email)
-    stats(config, keep, args.dry, args.verbose)
+    stats(config, keep, from_date=args.from_date,
+          to_date=args.to_date, dry=args.dry, verbose=args.verbose)
 
 
 def handle_login():
