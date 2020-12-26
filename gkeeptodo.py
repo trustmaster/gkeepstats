@@ -228,7 +228,7 @@ def get_config(path='gkeeptodo.ini'):
         print(f'Config file {path} not found')
         exit()
 
-    ini = ConfigParser(interpolation=None)
+    ini = ConfigParser(interpolation=None, inline_comment_prefixes=('#', ';'))
     ini.read(path)
 
     return ini
