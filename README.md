@@ -25,7 +25,7 @@ Supported metrics:
 
 ## Installation
 
-This script requires Python 3, https://github.com/kiwiz/gkeepapi, and a couple more libraries to run. Install the pre-requisite libraries via Pip3:
+This script requires Python 3.9+, https://github.com/kiwiz/gkeepapi, and a couple more libraries to run. Install the pre-requisite libraries via Pip3:
 
 ```
 pip3 install -r requirements.txt
@@ -35,6 +35,18 @@ Optional: make the script executable:
 
 ```
 chmod +x gkeeptodo.py
+```
+
+### Preventing "Authentication failed" on some systems
+
+On some systems the authentication fails even with valid credentials. This may happen because of two reasons: either Google issues a CAPTCHA for your IP address, or SSL certificate validation fails.
+
+To fix the CAPTCHA problem, try using the [Unlock CAPTCHA link](https://accounts.google.com/DisplayUnlockCaptcha) before retrying login.
+
+To try fixing the SSL problem, revert to an older version of the following library:
+
+```
+pip3 install requests==2.23.0
 ```
 
 ## Usage

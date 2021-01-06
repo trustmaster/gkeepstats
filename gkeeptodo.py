@@ -314,8 +314,9 @@ def login(keep: Keep, email: str):
     print('Authenticating, this may take a while...')
     try:
         keep.login(email, password)
-    except:
+    except Exception as e:
         print('Authentication failed')
+        print(e)
         exit()
 
     # Save the auth token in keyring
